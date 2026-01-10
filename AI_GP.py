@@ -3,6 +3,9 @@ import pandas as pd
 import re
 import ast
 from collections import Counter
+import plotly.express as px
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 # ---------------------------------------------
 # 1. PAGE CONFIG
@@ -11,6 +14,7 @@ st.set_page_config(
     page_title="CookMate",
     layout="wide"
 )
+
 
 # ---------------------------------------------
 # 2. LOAD DATA
@@ -27,6 +31,7 @@ def load_and_clean_data():
 
     df["search_field"] = df["ingredients"].apply(simple_clean)
     return df
+
 
 df = load_and_clean_data()
 
@@ -53,7 +58,8 @@ with col_logo:
 if not st.session_state.started:
 
     st.markdown("<h1 style='text-align:center; color:#6e82d3;'>🍳 CookMate</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align:center; color:#967EAF;'>Your Personalized Recipe Recommender</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; color:#967EAF;'>Your Personalized Recipe Recommender</h3>",
+                unsafe_allow_html=True)
     st.divider()
 
     col1, col2, col3 = st.columns(3)
@@ -233,6 +239,58 @@ recipe_type = st.sidebar.selectbox(
 max_results = st.sidebar.slider("Max Results", 5, 50, 20)
 
 search_clicked = st.sidebar.button("🔎 Search Recipes")
+
+# ---------------------------------------------
+# DATASET VISUALIZATIONS
+# ---------------------------------------------
+if not search_clicked:
+    st.markdown("### 📊 Dataset Overview")
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total Recipes", f"{len(df):,}")
+    m2.metric("Categories", df['category'].nunique())
+    m3.metric("Subcategories", df['subcategory'].nunique())
+    m4.metric("Avg Ingredients", round(df['num_ingredients'].mean(), 1))
+    m5.metric("Avg Steps", round(df['num_steps'].mean(), 1))
+
+    st.divider()
+
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.markdown("#### ☁️ Category Themes")
+        cat_text = " ".join(df['category'].dropna().astype(str))
+
+        wc = WordCloud(
+            background_color="white",
+            colormap="plasma",
+            width=800,
+            height=500,
+            collocations=False,
+            repeat=True
+        ).generate(cat_text)
+
+        fig_wc, ax = plt.subplots()
+        ax.imshow(wc, interpolation='bilinear')
+        ax.axis("off")
+        st.pyplot(fig_wc)
+
+    with col_right:
+        st.markdown("#### 📈 Complexity Distribution")
+        viz_choice = st.radio("Show distribution of:", ["Ingredients", "Steps"], horizontal=True)
+
+        if viz_choice == "Ingredients":
+            fig_hist = px.histogram(df, x="num_ingredients", nbins=40,
+                                    title="Distribution of Number of Ingredients",
+                                    color_discrete_sequence=['#6e82d3'])
+            fig_hist.update_layout(xaxis_title="Number of Ingredients", yaxis_title="Recipe Count")
+        else:
+            fig_hist = px.histogram(df, x="num_steps", nbins=40,
+                                    title="Distribution of Cooking Steps",
+                                    color_discrete_sequence=['#967EAF'])
+            fig_hist.update_layout(xaxis_title="Number of Steps", yaxis_title="Recipe Count")
+
+        st.plotly_chart(fig_hist, use_container_width=True)
 
 # ---------------------------------------------
 # 8. SEARCH LOGIC
